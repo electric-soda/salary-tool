@@ -1,0 +1,2485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薪酬预算预测引擎</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --purple-50: #faf5ff;
+            --purple-100: #f3e8ff;
+            --purple-200: #e9d5ff;
+            --purple-300: #d8b4fe;
+            --purple-400: #c084fc;
+            --purple-500: #a855f7;
+            --purple-600: #9333ea;
+            --purple-700: #7c3aed;
+            --purple-800: #6b21a8;
+            --purple-900: #581c87;
+            
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-200: #e2e8f0;
+            --slate-300: #cbd5e1;
+            --slate-400: #94a3b8;
+            --slate-500: #64748b;
+            --slate-600: #475569;
+            --slate-700: #334155;
+            --slate-800: #1e293b;
+            --slate-900: #0f172a;
+
+            --bg-primary: var(--purple-50);
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --border-color: var(--purple-200);
+            --text-primary: var(--slate-800);
+            --text-secondary: var(--slate-600);
+            --text-muted: var(--slate-400);
+            --accent: var(--purple-600);
+            --accent-light: var(--purple-100);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--purple-50) 0%, #fdf4ff 50%, var(--purple-100) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--purple-200);
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .logo {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid var(--purple-100);
+            margin-bottom: 16px;
+        }
+
+        .logo h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--purple-700);
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: var(--purple-50);
+            color: var(--purple-700);
+        }
+
+        .nav-item.active {
+            background: var(--purple-100);
+            border-left-color: var(--purple-600);
+            color: var(--purple-700);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            padding: 32px 40px;
+            max-width: 1400px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--slate-800);
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--purple-100);
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 24px rgba(147, 51, 234, 0.06);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 32px rgba(147, 51, 234, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--purple-50);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--slate-700);
+        }
+
+        .card-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .badge-sales {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .badge-manager {
+            background: #fce7f3;
+            color: #be185d;
+        }
+
+        .badge-owner {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .badge-function {
+            background: var(--purple-100);
+            color: var(--purple-700);
+        }
+
+        /* Form Elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .form-input {
+            padding: 10px 14px;
+            border: 1px solid var(--purple-200);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            background: var(--purple-50);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--purple-400);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-select {
+            padding: 10px 14px;
+            border: 1px solid var(--purple-200);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--purple-50);
+            cursor: pointer;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--purple-400);
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: var(--slate-300);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle.active {
+            background: var(--purple-500);
+        }
+
+        .toggle-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .toggle.active .toggle-knob {
+            transform: translateX(20px);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--purple-500), var(--purple-600));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--purple-600), var(--purple-700));
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--purple-100);
+            color: var(--purple-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--purple-200);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--purple-200);
+        }
+
+        .btn-ghost:hover {
+            background: var(--purple-50);
+            border-color: var(--purple-300);
+        }
+
+        /* Results Page */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--purple-100);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--slate-800);
+        }
+
+        .stat-value.accent {
+            color: var(--purple-600);
+        }
+
+        .stat-change {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--danger);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--purple-100);
+            margin-bottom: 24px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--slate-700);
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--purple-100);
+            background: var(--purple-50);
+        }
+
+        .data-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--purple-50);
+        }
+
+        .data-table tr:hover td {
+            background: var(--purple-50);
+        }
+
+        /* Warning/Info Boxes */
+        .alert {
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .alert-info {
+            background: var(--purple-50);
+            color: var(--purple-800);
+            border: 1px solid var(--purple-200);
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        /* Performance Distribution */
+        .perf-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .perf-card {
+            text-align: center;
+            padding: 16px;
+            border-radius: 12px;
+            background: var(--purple-50);
+            border: 1px solid var(--purple-100);
+        }
+
+        .perf-grade {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .perf-grade.s { color: #059669; }
+        .perf-grade.a { color: #0284c7; }
+        .perf-grade.b { color: #7c3aed; }
+        .perf-grade.c { color: #dc2626; }
+
+        /* Timing Heat Bar */
+        .heat-bar {
+            display: flex;
+            gap: 4px;
+            margin-top: 16px;
+        }
+
+        .heat-month {
+            flex: 1;
+            height: 40px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .heat-month span {
+            font-size: 8px;
+            opacity: 0.8;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--purple-100);
+            padding-bottom: 12px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            background: var(--purple-50);
+        }
+
+        .tab.active {
+            background: var(--purple-100);
+            color: var(--purple-700);
+        }
+
+        /* Scenario Actions */
+        .scenario-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        /* Group Cards Grid */
+        .group-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .group-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Template Dropdown */
+        .template-select {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Apply All Button */
+        .apply-all-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--purple-100);
+            border: 1px solid var(--purple-200);
+            border-radius: 8px;
+            color: var(--purple-700);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .apply-all-btn:hover {
+            background: var(--purple-200);
+        }
+
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            background: var(--purple-100);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+
+        .mode-option {
+            flex: 1;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .mode-option.active {
+            background: white;
+            color: var(--purple-700);
+            box-shadow: 0 2px 8px rgba(147, 51, 234, 0.15);
+        }
+
+        /* Budget Input */
+        .budget-input-container {
+            background: linear-gradient(135deg, var(--purple-100), var(--purple-50));
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 2px dashed var(--purple-300);
+        }
+
+        /* Feasibility Status */
+        .feasibility-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .feasibility-status.feasible {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .feasibility-status.infeasible {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--purple-50);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--purple-300);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--purple-400);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* URL Share Section */
+        .share-section {
+            background: var(--purple-50);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .share-url {
+            display: flex;
+            gap: 8px;
+        }
+
+        .share-url input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--purple-200);
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: monospace;
+            background: white;
+        }
+
+        .copy-btn {
+            padding: 10px 16px;
+            background: var(--purple-600);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .copy-btn:hover {
+            background: var(--purple-700);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+        // ==================== 计算引擎 ====================
+        const CalcEngine = {
+            // 比例转绝对额: ratio = x / (x + base) => x = base * ratio / (1 - ratio)
+            ratioToAbsolute: (base, ratio) => {
+                if (ratio >= 1 || ratio < 0) return 0;
+                return base * ratio / (1 - ratio);
+            },
+
+            // 绝对额转比例
+            absoluteToRatio: (base, amount) => {
+                if (base + amount === 0) return 0;
+                return amount / (amount + base);
+            },
+
+            // var_pct_of_base 转 ratio
+            varPctToRatio: (varPct) => {
+                // varPct = bonus / base => ratio = bonus / (bonus + base) = varPct / (1 + varPct)
+                return varPct / (1 + varPct);
+            },
+
+            // ratio 转 var_pct_of_base
+            ratioToVarPct: (ratio) => {
+                if (ratio >= 1) return Infinity;
+                return ratio / (1 - ratio);
+            },
+
+            // N个月工资 转 ratio
+            monthsToRatio: (months) => {
+                // months * monthBase = bonus => varPct = months / 12
+                const varPct = months / 12;
+                return CalcEngine.varPctToRatio(varPct);
+            },
+
+            // ratio 转 N个月工资
+            ratioToMonths: (ratio) => {
+                const varPct = CalcEngine.ratioToVarPct(ratio);
+                return varPct * 12;
+            },
+
+            // 计算绩效分布期望和方差
+            calcPerfStats: (perfDist) => {
+                const { pS, pA, pB, pC, mS, mA, mB, mC } = perfDist;
+                const E_M = pS * mS + pA * mA + pB * mB + pC * mC;
+                const E_M2 = pS * mS * mS + pA * mA * mA + pB * mB * mB + pC * mC * mC;
+                const Var_M = E_M2 - E_M * E_M;
+                return { E_M, Var_M, SD_M: Math.sqrt(Math.max(0, Var_M)) };
+            },
+
+            // 单个Group计算
+            calcGroup: (group, perfStats, globalTiming = null) => {
+                const {
+                    headcount,
+                    avgBaseMonth,
+                    overheadMultiplier,
+                    commissionRatio,
+                    commissionApplyOverhead,
+                    varRatio,
+                    groupType,
+                    timing
+                } = group;
+
+                const useTiming = timing || globalTiming || {
+                    wMonthly: 0, wQuarterly: 0, wAnnual: 1, wFloating: 0,
+                    quarterPayMonths: [3, 6, 9, 12],
+                    annualPayMonth: 12,
+                    floatingPayMode: 'even',
+                    floatingPayMonths: []
+                };
+
+                // 年度基薪成本
+                const baseYearPerCap = avgBaseMonth * 12;
+                const baseCostYear = headcount * baseYearPerCap * overheadMultiplier;
+
+                // 年度提成成本（仅销售）
+                const commissionMonthPerCap = CalcEngine.ratioToAbsolute(avgBaseMonth, commissionRatio);
+                const commissionMultiplier = commissionApplyOverhead ? overheadMultiplier : 1.0;
+                const commissionCostYear = headcount * commissionMonthPerCap * 12 * commissionMultiplier;
+
+                // 年度目标浮动奖金
+                const targetVarYearPerCap = CalcEngine.ratioToAbsolute(baseYearPerCap, varRatio);
+
+                // 绩效分布下的奖金期望与波动
+                let bonusCostYearExp, bonusCostYearSD;
+                
+                if (groupType === 'biz_owner') {
+                    // 业务负责人不走绩效分布
+                    bonusCostYearExp = headcount * targetVarYearPerCap;
+                    bonusCostYearSD = 0;
+                } else {
+                    const E_bonus_per_cap = targetVarYearPerCap * perfStats.E_M;
+                    const Var_bonus_per_cap = targetVarYearPerCap * targetVarYearPerCap * perfStats.Var_M;
+                    bonusCostYearExp = headcount * E_bonus_per_cap;
+                    bonusCostYearSD = Math.sqrt(headcount * Var_bonus_per_cap);
+                }
+
+                // 年度总成本
+                const totalCostYearExp = baseCostYear + commissionCostYear + bonusCostYearExp;
+
+                // 月度现金流拆分
+                const cashflow = Array(12).fill(0);
+                const cashflowFixed = Array(12).fill(0);
+                const cashflowBonus = Array(12).fill(0);
+
+                // 月度固定项
+                const baseMonth = headcount * avgBaseMonth * overheadMultiplier;
+                const commissionMonth = headcount * commissionMonthPerCap * commissionMultiplier;
+                for (let m = 0; m < 12; m++) {
+                    cashflowFixed[m] = baseMonth + commissionMonth;
+                    cashflow[m] += cashflowFixed[m];
+                }
+
+                // 奖金按权重拆分
+                const bonusYearExp = bonusCostYearExp;
+                
+                // 归一化权重
+                let { wMonthly, wQuarterly, wAnnual, wFloating } = useTiming;
+                const wSum = wMonthly + wQuarterly + wAnnual + wFloating;
+                if (wSum > 0) {
+                    wMonthly /= wSum;
+                    wQuarterly /= wSum;
+                    wAnnual /= wSum;
+                    wFloating /= wSum;
+                }
+
+                // 月度部分
+                const bonusMonthlyTotal = bonusYearExp * wMonthly;
+                for (let m = 0; m < 12; m++) {
+                    cashflowBonus[m] += bonusMonthlyTotal / 12;
+                }
+
+                // 季度部分
+                const bonusQuarterlyTotal = bonusYearExp * wQuarterly;
+                const qMonths = useTiming.quarterPayMonths || [3, 6, 9, 12];
+                qMonths.forEach(month => {
+                    if (month >= 1 && month <= 12) {
+                        cashflowBonus[month - 1] += bonusQuarterlyTotal / qMonths.length;
+                    }
+                });
+
+                // 年度部分
+                const bonusAnnualTotal = bonusYearExp * wAnnual;
+                const annualMonth = useTiming.annualPayMonth || 12;
+                if (annualMonth >= 1 && annualMonth <= 12) {
+                    cashflowBonus[annualMonth - 1] += bonusAnnualTotal;
+                }
+
+                // 浮动部分
+                const bonusFloatingTotal = bonusYearExp * wFloating;
+                if (useTiming.floatingPayMode === 'even') {
+                    for (let m = 0; m < 12; m++) {
+                        cashflowBonus[m] += bonusFloatingTotal / 12;
+                    }
+                } else {
+                    const fMonths = useTiming.floatingPayMonths || [];
+                    fMonths.forEach(month => {
+                        if (month >= 1 && month <= 12) {
+                            cashflowBonus[month - 1] += bonusFloatingTotal / fMonths.length;
+                        }
+                    });
+                }
+
+                // 合并
+                for (let m = 0; m < 12; m++) {
+                    cashflow[m] = cashflowFixed[m] + cashflowBonus[m];
+                }
+
+                return {
+                    baseCostYear,
+                    commissionCostYear,
+                    bonusCostYearExp,
+                    bonusCostYearSD,
+                    totalCostYearExp,
+                    cashflow,
+                    cashflowFixed,
+                    cashflowBonus,
+                    P90: bonusCostYearExp + 1.282 * bonusCostYearSD,
+                    P95: bonusCostYearExp + 1.645 * bonusCostYearSD
+                };
+            },
+
+            // 全公司计算（Bottom-Up）
+            calcCompanyBottomUp: (groups, perfDist) => {
+                const perfStats = CalcEngine.calcPerfStats(perfDist);
+                const groupResults = {};
+                
+                let totalBaseCost = 0;
+                let totalCommissionCost = 0;
+                let totalBonusExp = 0;
+                let totalBonusVar = 0;
+                const totalCashflow = Array(12).fill(0);
+                const totalCashflowFixed = Array(12).fill(0);
+                const totalCashflowBonus = Array(12).fill(0);
+
+                Object.entries(groups).forEach(([key, group]) => {
+                    const result = CalcEngine.calcGroup(group, perfStats);
+                    groupResults[key] = result;
+                    
+                    totalBaseCost += result.baseCostYear;
+                    totalCommissionCost += result.commissionCostYear;
+                    totalBonusExp += result.bonusCostYearExp;
+                    totalBonusVar += result.bonusCostYearSD * result.bonusCostYearSD;
+                    
+                    for (let m = 0; m < 12; m++) {
+                        totalCashflow[m] += result.cashflow[m];
+                        totalCashflowFixed[m] += result.cashflowFixed[m];
+                        totalCashflowBonus[m] += result.cashflowBonus[m];
+                    }
+                });
+
+                const totalBonusSD = Math.sqrt(totalBonusVar);
+                const totalCostExp = totalBaseCost + totalCommissionCost + totalBonusExp;
+
+                return {
+                    perfStats,
+                    groupResults,
+                    company: {
+                        baseCostYear: totalBaseCost,
+                        commissionCostYear: totalCommissionCost,
+                        bonusCostYearExp: totalBonusExp,
+                        bonusCostYearSD: totalBonusSD,
+                        totalCostYearExp: totalCostExp,
+                        cashflow: totalCashflow,
+                        cashflowFixed: totalCashflowFixed,
+                        cashflowBonus: totalCashflowBonus,
+                        P90: totalBonusExp + 1.282 * totalBonusSD,
+                        P95: totalBonusExp + 1.645 * totalBonusSD,
+                        bonusRatio: totalCostExp > 0 ? totalBonusExp / totalCostExp : 0
+                    }
+                };
+            },
+
+            // Top-Down 模式
+            calcCompanyTopDown: (groups, perfDist, budgetCap) => {
+                const perfStats = CalcEngine.calcPerfStats(perfDist);
+                
+                // 先计算固定成本
+                let fixedYear = 0;
+                Object.values(groups).forEach(group => {
+                    const baseYearPerCap = group.avgBaseMonth * 12;
+                    const baseCost = group.headcount * baseYearPerCap * group.overheadMultiplier;
+                    const commissionMonthPerCap = CalcEngine.ratioToAbsolute(group.avgBaseMonth, group.commissionRatio);
+                    const commissionMultiplier = group.commissionApplyOverhead ? group.overheadMultiplier : 1.0;
+                    const commissionCost = group.headcount * commissionMonthPerCap * 12 * commissionMultiplier;
+                    fixedYear += baseCost + commissionCost;
+                });
+
+                if (fixedYear > budgetCap) {
+                    // Infeasible
+                    const bottomUpResult = CalcEngine.calcCompanyBottomUp(groups, perfDist);
+                    return {
+                        ...bottomUpResult,
+                        topDown: {
+                            status: 'infeasible',
+                            fixedYear,
+                            budgetCap,
+                            gap: fixedYear - budgetCap,
+                            bonusPoolCap: 0,
+                            scalingFactor: 0
+                        }
+                    };
+                }
+
+                // 可用奖金池
+                const bonusPoolCap = budgetCap - fixedYear;
+
+                // 计算原始奖金总额
+                let bonusRawTotal = 0;
+                Object.values(groups).forEach(group => {
+                    const baseYearPerCap = group.avgBaseMonth * 12;
+                    const targetVarYearPerCap = CalcEngine.ratioToAbsolute(baseYearPerCap, group.varRatio);
+                    if (group.groupType === 'biz_owner') {
+                        bonusRawTotal += group.headcount * targetVarYearPerCap;
+                    } else {
+                        bonusRawTotal += group.headcount * targetVarYearPerCap * perfStats.E_M;
+                    }
+                });
+
+                // 缩放系数
+                const scalingFactor = bonusRawTotal > 0 ? Math.min(1, bonusPoolCap / bonusRawTotal) : 0;
+
+                // 应用缩放后重新计算
+                const scaledGroups = {};
+                Object.entries(groups).forEach(([key, group]) => {
+                    scaledGroups[key] = {
+                        ...group,
+                        varRatio: CalcEngine.absoluteToRatio(
+                            group.avgBaseMonth * 12,
+                            CalcEngine.ratioToAbsolute(group.avgBaseMonth * 12, group.varRatio) * scalingFactor
+                        )
+                    };
+                });
+
+                const scaledResult = CalcEngine.calcCompanyBottomUp(scaledGroups, perfDist);
+
+                return {
+                    ...scaledResult,
+                    topDown: {
+                        status: 'feasible',
+                        fixedYear,
+                        budgetCap,
+                        bonusPoolCap,
+                        scalingFactor,
+                        originalBonusTotal: bonusRawTotal
+                    }
+                };
+            }
+        };
+
+        // ==================== 默认数据 ====================
+        const defaultPerfDist = {
+            pS: 0.1, pA: 0.3, pB: 0.5, pC: 0.1,
+            mS: 1.5, mA: 1.2, mB: 1.0, mC: 0.5
+        };
+
+        const perfTemplates = {
+            conservative: { pS: 0.05, pA: 0.20, pB: 0.60, pC: 0.15, mS: 1.3, mA: 1.1, mB: 1.0, mC: 0.6 },
+            standard: { pS: 0.10, pA: 0.30, pB: 0.50, pC: 0.10, mS: 1.5, mA: 1.2, mB: 1.0, mC: 0.5 },
+            aggressive: { pS: 0.15, pA: 0.35, pB: 0.40, pC: 0.10, mS: 1.8, mA: 1.3, mB: 1.0, mC: 0.4 }
+        };
+
+        const defaultTiming = {
+            wMonthly: 0,
+            wQuarterly: 0,
+            wAnnual: 1,
+            wFloating: 0,
+            quarterPayMonths: [3, 6, 9, 12],
+            annualPayMonth: 12,
+            floatingPayMode: 'even',
+            floatingPayMonths: []
+        };
+
+        const defaultGroups = {
+            sales_frontline: {
+                name: '一线销售',
+                groupType: 'sales_frontline',
+                headcount: 50,
+                avgBaseMonth: 8000,
+                overheadMultiplier: 1.4,
+                commissionRatio: 0.4,
+                commissionApplyOverhead: false,
+                varRatio: 0,
+                varInputMode: 'ratio',
+                timing: { ...defaultTiming }
+            },
+            sales_manager: {
+                name: '销售管理',
+                groupType: 'sales_manager',
+                headcount: 10,
+                avgBaseMonth: 15000,
+                overheadMultiplier: 1.4,
+                commissionRatio: 0.3,
+                commissionApplyOverhead: false,
+                varRatio: 0,
+                varInputMode: 'ratio',
+                timing: { ...defaultTiming }
+            },
+            biz_owner: {
+                name: '业务负责人',
+                groupType: 'biz_owner',
+                headcount: 3,
+                avgBaseMonth: 40000,
+                overheadMultiplier: 1.4,
+                commissionRatio: 0,
+                commissionApplyOverhead: false,
+                varRatio: 0.5,
+                varInputMode: 'ratio',
+                timing: { ...defaultTiming }
+            },
+            function: {
+                name: '职能岗位',
+                groupType: 'function',
+                headcount: 30,
+                avgBaseMonth: 12000,
+                overheadMultiplier: 1.4,
+                commissionRatio: 0,
+                commissionApplyOverhead: false,
+                varRatio: 0.167,
+                varInputMode: 'months',
+                varMonths: 2,
+                timing: { ...defaultTiming }
+            }
+        };
+
+        // ==================== 工具函数 ====================
+        const formatCurrency = (num) => {
+            if (num >= 100000000) return (num / 100000000).toFixed(2) + ' 亿';
+            if (num >= 10000) return (num / 10000).toFixed(1) + ' 万';
+            return num.toFixed(0) + ' 元';
+        };
+
+        const formatPercent = (num) => (num * 100).toFixed(1) + '%';
+
+        // URL 编码/解码 - 使用压缩和 URL 安全的 base64
+        const encodeState = (state) => {
+            try {
+                const json = JSON.stringify(state);
+                // 使用 UTF-8 编码然后 base64
+                const utf8Bytes = new TextEncoder().encode(json);
+                let binary = '';
+                utf8Bytes.forEach(byte => binary += String.fromCharCode(byte));
+                // 转换为 URL 安全的 base64
+                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            } catch (e) {
+                return '';
+            }
+        };
+
+        const decodeState = (encoded) => {
+            try {
+                // 还原 URL 安全的 base64
+                let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+                // 补齐 padding
+                while (base64.length % 4) base64 += '=';
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                const json = new TextDecoder().decode(bytes);
+                return JSON.parse(json);
+            } catch (e) {
+                // 兼容旧版编码格式
+                try {
+                    const json = decodeURIComponent(atob(encoded));
+                    return JSON.parse(json);
+                } catch (e2) {
+                    return null;
+                }
+            }
+        };
+
+        // ==================== 组件 ====================
+        
+        // 图标组件
+        const Icons = {
+            Scenario: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                </svg>
+            ),
+            Assumptions: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            ),
+            Performance: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+            ),
+            Timing: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            ),
+            Results: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="20" x2="12" y2="10"/>
+                    <line x1="18" y1="20" x2="18" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="16"/>
+                </svg>
+            ),
+            Copy: () => (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+            ),
+            Check: () => (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            ),
+            Warning: () => (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            )
+        };
+
+        // 侧边栏
+        const Sidebar = ({ activePage, setActivePage }) => {
+            const navItems = [
+                { id: 'scenario', label: '方案', icon: Icons.Scenario },
+                { id: 'assumptions', label: '输入假设', icon: Icons.Assumptions },
+                { id: 'performance', label: '绩效分布', icon: Icons.Performance },
+                { id: 'timing', label: '发放节奏', icon: Icons.Timing },
+                { id: 'results', label: '结果', icon: Icons.Results }
+            ];
+
+            return (
+                <div className="sidebar">
+                    <div className="logo">
+                        <h1>薪酬预算引擎</h1>
+                        <span>Compensation Planner</span>
+                    </div>
+                    {navItems.map(item => (
+                        <div
+                            key={item.id}
+                            className={`nav-item ${activePage === item.id ? 'active' : ''}`}
+                            onClick={() => setActivePage(item.id)}
+                        >
+                            <div className="nav-icon"><item.icon /></div>
+                            {item.label}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // 方案页
+        const ScenarioPage = ({ scenarioName, setScenarioName, scenarioNote, setScenarioNote, onExport, onImport, shareUrl }) => {
+            const [copied, setCopied] = useState(false);
+            const fileInputRef = useRef(null);
+
+            const handleCopy = () => {
+                navigator.clipboard.writeText(shareUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            };
+
+            const handleFileSelect = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            onImport(data);
+                        } catch (err) {
+                            alert('JSON 文件格式错误');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            return (
+                <div className="animate-in">
+                    <div className="page-header">
+                        <h2 className="page-title">方案管理</h2>
+                        <p className="page-subtitle">创建、保存和分享你的薪酬预算方案</p>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header">
+                            <span className="card-title">当前方案</span>
+                        </div>
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label className="form-label">方案名称</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={scenarioName}
+                                    onChange={(e) => setScenarioName(e.target.value)}
+                                    placeholder="2025年度预算方案"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">备注</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={scenarioNote}
+                                    onChange={(e) => setScenarioNote(e.target.value)}
+                                    placeholder="可选备注..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="scenario-actions" style={{ marginTop: '20px' }}>
+                            <button className="btn btn-primary" onClick={onExport}>
+                                导出 JSON
+                            </button>
+                            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                                导入 JSON
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".json"
+                                style={{ display: 'none' }}
+                                onChange={handleFileSelect}
+                            />
+                        </div>
+
+                        <div className="share-section">
+                            <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
+                                分享链接（复制后发送给他人即可查看此方案）
+                            </label>
+                            <div className="share-url">
+                                <input type="text" value={shareUrl} readOnly />
+                                <button className="copy-btn" onClick={handleCopy}>
+                                    {copied ? '已复制' : '复制'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 人才组卡片
+        const GroupCard = ({ groupKey, group, onChange, perfStats }) => {
+            const getBadgeClass = () => {
+                if (groupKey.includes('sales')) return 'badge-sales';
+                if (groupKey === 'biz_owner') return 'badge-owner';
+                return 'badge-function';
+            };
+
+            const getBadgeText = () => {
+                if (groupKey === 'sales_frontline') return '一线销售';
+                if (groupKey === 'sales_manager') return '销售管理';
+                if (groupKey === 'biz_owner') return '业务负责人';
+                return '职能';
+            };
+
+            const isSales = groupKey.includes('sales');
+            const isBizOwner = groupKey === 'biz_owner';
+
+            const handleChange = (field, value) => {
+                const newGroup = { ...group, [field]: value };
+                
+                // 处理奖金输入模式转换
+                if (field === 'varInputMode') {
+                    const baseYear = group.avgBaseMonth * 12;
+                    if (value === 'ratio') {
+                        // 保持 varRatio 不变
+                    } else if (value === 'pct') {
+                        newGroup.varPct = CalcEngine.ratioToVarPct(group.varRatio);
+                    } else if (value === 'months') {
+                        newGroup.varMonths = CalcEngine.ratioToMonths(group.varRatio);
+                    }
+                }
+                
+                // 根据输入模式更新 varRatio
+                if (field === 'varPct') {
+                    newGroup.varRatio = CalcEngine.varPctToRatio(value);
+                } else if (field === 'varMonths') {
+                    newGroup.varRatio = CalcEngine.monthsToRatio(value);
+                }
+
+                onChange(groupKey, newGroup);
+            };
+
+            return (
+                <div className="card">
+                    <div className="card-header">
+                        <span className="card-title">{group.name}</span>
+                        <span className={`card-badge ${getBadgeClass()}`}>{getBadgeText()}</span>
+                    </div>
+
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label className="form-label">人数</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                value={group.headcount}
+                                onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 0)}
+                                min="0"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">平均月基薪 (元)</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                value={group.avgBaseMonth}
+                                onChange={(e) => handleChange('avgBaseMonth', parseFloat(e.target.value) || 0)}
+                                min="0"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">用工系数</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                value={group.overheadMultiplier}
+                                onChange={(e) => handleChange('overheadMultiplier', parseFloat(e.target.value) || 1)}
+                                step="0.1"
+                                min="1"
+                            />
+                        </div>
+                    </div>
+
+                    {(isSales) && (
+                        <div style={{ marginTop: '16px' }}>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        提成占比 (提成/总收入)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={(group.commissionRatio * 100).toFixed(1)}
+                                        onChange={(e) => handleChange('commissionRatio', (parseFloat(e.target.value) || 0) / 100)}
+                                        step="1"
+                                        min="0"
+                                        max="99"
+                                    />
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                        月提成约 {formatCurrency(CalcEngine.ratioToAbsolute(group.avgBaseMonth, group.commissionRatio))}
+                                    </span>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">提成是否乘用工系数</label>
+                                    <div className="toggle-container">
+                                        <div
+                                            className={`toggle ${group.commissionApplyOverhead ? 'active' : ''}`}
+                                            onClick={() => handleChange('commissionApplyOverhead', !group.commissionApplyOverhead)}
+                                        >
+                                            <div className="toggle-knob" />
+                                        </div>
+                                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                            {group.commissionApplyOverhead ? '是' : '否'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 奖金输入 - 所有岗位都显示，但业务负责人有特殊处理 */}
+                    <div style={{ marginTop: '16px' }}>
+                        <div className="form-grid">
+                            {isBizOwner ? (
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        激励占比 (激励/总包)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={(group.varRatio * 100).toFixed(1)}
+                                        onChange={(e) => handleChange('varRatio', (parseFloat(e.target.value) || 0) / 100)}
+                                        step="1"
+                                        min="0"
+                                        max="99"
+                                    />
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                        年激励约 {formatCurrency(CalcEngine.ratioToAbsolute(group.avgBaseMonth * 12, group.varRatio))}
+                                        （不走绩效分布）
+                                    </span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="form-group">
+                                        <label className="form-label">奖金输入方式</label>
+                                        <select
+                                            className="form-select"
+                                            value={group.varInputMode || 'ratio'}
+                                            onChange={(e) => handleChange('varInputMode', e.target.value)}
+                                        >
+                                            <option value="ratio">占总包比例</option>
+                                            <option value="pct">占年基薪比例</option>
+                                            <option value="months">N个月工资</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">
+                                            {group.varInputMode === 'ratio' && '奖金占比 (%)'}
+                                            {group.varInputMode === 'pct' && '占年基薪比例 (%)'}
+                                            {group.varInputMode === 'months' && '月数'}
+                                        </label>
+                                        {group.varInputMode === 'ratio' && (
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                value={(group.varRatio * 100).toFixed(1)}
+                                                onChange={(e) => handleChange('varRatio', (parseFloat(e.target.value) || 0) / 100)}
+                                                step="1"
+                                                min="0"
+                                                max="99"
+                                            />
+                                        )}
+                                        {group.varInputMode === 'pct' && (
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                value={((group.varPct || CalcEngine.ratioToVarPct(group.varRatio)) * 100).toFixed(1)}
+                                                onChange={(e) => handleChange('varPct', (parseFloat(e.target.value) || 0) / 100)}
+                                                step="1"
+                                                min="0"
+                                            />
+                                        )}
+                                        {group.varInputMode === 'months' && (
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                value={group.varMonths || CalcEngine.ratioToMonths(group.varRatio)}
+                                                onChange={(e) => handleChange('varMonths', parseFloat(e.target.value) || 0)}
+                                                step="0.5"
+                                                min="0"
+                                            />
+                                        )}
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                            目标年奖金约 {formatCurrency(CalcEngine.ratioToAbsolute(group.avgBaseMonth * 12, group.varRatio))}
+                                            {!isBizOwner && perfStats && ` × E[M]=${perfStats.E_M.toFixed(2)}`}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 输入假设页
+        const AssumptionsPage = ({ groups, setGroups, perfStats }) => {
+            const handleGroupChange = (key, newGroup) => {
+                setGroups(prev => ({ ...prev, [key]: newGroup }));
+            };
+
+            return (
+                <div className="animate-in">
+                    <div className="page-header">
+                        <h2 className="page-title">输入假设</h2>
+                        <p className="page-subtitle">配置各类岗位的人数、薪资和激励参数</p>
+                    </div>
+
+                    <div className="group-cards">
+                        {Object.entries(groups).map(([key, group]) => (
+                            <GroupCard
+                                key={key}
+                                groupKey={key}
+                                group={group}
+                                onChange={handleGroupChange}
+                                perfStats={perfStats}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // 绩效分布页
+        const PerformancePage = ({ perfDist, setPerfDist }) => {
+            const stats = CalcEngine.calcPerfStats(perfDist);
+            const sumP = perfDist.pS + perfDist.pA + perfDist.pB + perfDist.pC;
+            const isValidSum = Math.abs(sumP - 1) < 0.001;
+
+            const handleTemplateChange = (template) => {
+                if (perfTemplates[template]) {
+                    setPerfDist({ ...perfTemplates[template] });
+                }
+            };
+
+            const handleChange = (field, value) => {
+                setPerfDist(prev => ({ ...prev, [field]: value }));
+            };
+
+            return (
+                <div className="animate-in">
+                    <div className="page-header">
+                        <h2 className="page-title">绩效分布</h2>
+                        <p className="page-subtitle">设置 S/A/B/C 各档的占比和奖金系数</p>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header">
+                            <span className="card-title">分布模板</span>
+                            <div className="template-select">
+                                <select
+                                    className="form-select"
+                                    onChange={(e) => handleTemplateChange(e.target.value)}
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>选择模板...</option>
+                                    <option value="conservative">保守</option>
+                                    <option value="standard">基准</option>
+                                    <option value="aggressive">激进</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {!isValidSum && (
+                            <div className="alert alert-warning">
+                                <Icons.Warning />
+                                <span>绩效比例之和为 {(sumP * 100).toFixed(1)}%，应为 100%</span>
+                            </div>
+                        )}
+
+                        <div className="perf-grid">
+                            {[
+                                { key: 'S', p: 'pS', m: 'mS', color: '#059669' },
+                                { key: 'A', p: 'pA', m: 'mA', color: '#0284c7' },
+                                { key: 'B', p: 'pB', m: 'mB', color: '#7c3aed' },
+                                { key: 'C', p: 'pC', m: 'mC', color: '#dc2626' }
+                            ].map(item => (
+                                <div key={item.key} className="perf-card">
+                                    <div className="perf-grade" style={{ color: item.color }}>{item.key}</div>
+                                    <div className="form-group" style={{ marginTop: '12px' }}>
+                                        <label className="form-label">占比 (%)</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={(perfDist[item.p] * 100).toFixed(0)}
+                                            onChange={(e) => handleChange(item.p, (parseFloat(e.target.value) || 0) / 100)}
+                                            step="5"
+                                            min="0"
+                                            max="100"
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ marginTop: '8px' }}>
+                                        <label className="form-label">系数</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={perfDist[item.m]}
+                                            onChange={(e) => handleChange(item.m, parseFloat(e.target.value) || 0)}
+                                            step="0.1"
+                                            min="0"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ marginTop: '24px', padding: '16px', background: 'var(--purple-50)', borderRadius: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
+                                <div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>期望值 E[M]</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--purple-700)' }}>{stats.E_M.toFixed(3)}</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>标准差 SD[M]</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--purple-700)' }}>{stats.SD_M.toFixed(3)}</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>方差 Var[M]</div>
+                                    <div style={{ fontSize: '20px', fontWeight: '600', color: 'var(--purple-700)' }}>{stats.Var_M.toFixed(4)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 发放节奏页
+        const TimingPage = ({ groups, setGroups }) => {
+            const [selectedGroup, setSelectedGroup] = useState('sales_frontline');
+            const group = groups[selectedGroup];
+            const timing = group?.timing || defaultTiming;
+
+            const handleTimingChange = (field, value) => {
+                setGroups(prev => ({
+                    ...prev,
+                    [selectedGroup]: {
+                        ...prev[selectedGroup],
+                        timing: {
+                            ...prev[selectedGroup].timing,
+                            [field]: value
+                        }
+                    }
+                }));
+            };
+
+            const applyToAll = () => {
+                const currentTiming = groups[selectedGroup].timing;
+                setGroups(prev => {
+                    const newGroups = { ...prev };
+                    Object.keys(newGroups).forEach(key => {
+                        newGroups[key] = {
+                            ...newGroups[key],
+                            timing: { ...currentTiming }
+                        };
+                    });
+                    return newGroups;
+                });
+            };
+
+            const wSum = timing.wMonthly + timing.wQuarterly + timing.wAnnual + timing.wFloating;
+            const isValidSum = Math.abs(wSum - 1) < 0.001;
+
+            // 计算热力条
+            const getHeatColors = () => {
+                const monthlyShare = timing.wMonthly / 12;
+                const quarterlyShare = timing.wQuarterly / (timing.quarterPayMonths?.length || 4);
+                const floatingShare = timing.floatingPayMode === 'even' 
+                    ? timing.wFloating / 12 
+                    : timing.wFloating / (timing.floatingPayMonths?.length || 1);
+
+                return Array(12).fill(0).map((_, i) => {
+                    const month = i + 1;
+                    let heat = monthlyShare;
+                    
+                    if (timing.quarterPayMonths?.includes(month)) {
+                        heat += quarterlyShare;
+                    }
+                    if (month === timing.annualPayMonth) {
+                        heat += timing.wAnnual;
+                    }
+                    if (timing.floatingPayMode === 'even') {
+                        heat += floatingShare;
+                    } else if (timing.floatingPayMonths?.includes(month)) {
+                        heat += floatingShare;
+                    }
+                    
+                    return heat;
+                });
+            };
+
+            const heatValues = getHeatColors();
+            const maxHeat = Math.max(...heatValues);
+
+            return (
+                <div className="animate-in">
+                    <div className="page-header">
+                        <h2 className="page-title">发放节奏</h2>
+                        <p className="page-subtitle">配置奖金的月度/季度/年度发放权重</p>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <span className="card-title">选择岗位组</span>
+                                <select
+                                    className="form-select"
+                                    value={selectedGroup}
+                                    onChange={(e) => setSelectedGroup(e.target.value)}
+                                >
+                                    {Object.entries(groups).map(([key, g]) => (
+                                        <option key={key} value={key}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button className="apply-all-btn" onClick={applyToAll}>
+                                <Icons.Copy /> 应用到所有组
+                            </button>
+                        </div>
+
+                        {!isValidSum && (
+                            <div className="alert alert-warning">
+                                <Icons.Warning />
+                                <span>权重之和为 {(wSum * 100).toFixed(1)}%，将自动归一化</span>
+                            </div>
+                        )}
+
+                        <div className="form-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                            <div className="form-group">
+                                <label className="form-label">月度发放 (%)</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={(timing.wMonthly * 100).toFixed(0)}
+                                    onChange={(e) => handleTimingChange('wMonthly', (parseFloat(e.target.value) || 0) / 100)}
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">季度发放 (%)</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={(timing.wQuarterly * 100).toFixed(0)}
+                                    onChange={(e) => handleTimingChange('wQuarterly', (parseFloat(e.target.value) || 0) / 100)}
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">年终发放 (%)</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={(timing.wAnnual * 100).toFixed(0)}
+                                    onChange={(e) => handleTimingChange('wAnnual', (parseFloat(e.target.value) || 0) / 100)}
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">浮动发放 (%)</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={(timing.wFloating * 100).toFixed(0)}
+                                    onChange={(e) => handleTimingChange('wFloating', (parseFloat(e.target.value) || 0) / 100)}
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-grid" style={{ marginTop: '16px' }}>
+                            <div className="form-group">
+                                <label className="form-label">年终发放月份</label>
+                                <select
+                                    className="form-select"
+                                    value={timing.annualPayMonth}
+                                    onChange={(e) => handleTimingChange('annualPayMonth', parseInt(e.target.value))}
+                                >
+                                    {[1, 2, 12].map(m => (
+                                        <option key={m} value={m}>{m}月</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">浮动发放方式</label>
+                                <select
+                                    className="form-select"
+                                    value={timing.floatingPayMode}
+                                    onChange={(e) => handleTimingChange('floatingPayMode', e.target.value)}
+                                >
+                                    <option value="even">均摊到12个月</option>
+                                    <option value="specified">指定月份</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '24px' }}>
+                            <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
+                                奖金现金流预览（颜色越深表示该月发放越多）
+                            </label>
+                            <div className="heat-bar">
+                                {heatValues.map((heat, i) => {
+                                    const intensity = maxHeat > 0 ? heat / maxHeat : 0;
+                                    const bgColor = `rgba(147, 51, 234, ${0.1 + intensity * 0.7})`;
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="heat-month"
+                                            style={{ background: bgColor, color: intensity > 0.5 ? 'white' : 'var(--text-secondary)' }}
+                                        >
+                                            {i + 1}月
+                                            <span>{(heat * 100).toFixed(0)}%</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 结果页
+        const ResultsPage = ({ results, mode, budgetCap, setBudgetCap, setMode, groups }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (!chartRef.current || !results) return;
+
+                if (chartInstance.current) {
+                    chartInstance.current.destroy();
+                }
+
+                const ctx = chartRef.current.getContext('2d');
+                chartInstance.current = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                        datasets: [
+                            {
+                                label: '固定成本',
+                                data: results.company.cashflowFixed.map(v => v / 10000),
+                                backgroundColor: 'rgba(147, 51, 234, 0.3)',
+                                borderColor: 'rgba(147, 51, 234, 0.5)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: '奖金',
+                                data: results.company.cashflowBonus.map(v => v / 10000),
+                                backgroundColor: 'rgba(147, 51, 234, 0.7)',
+                                borderColor: 'rgba(147, 51, 234, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true },
+                            y: {
+                                stacked: true,
+                                title: { display: true, text: '万元' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { usePointStyle: true }
+                            }
+                        }
+                    }
+                });
+
+                return () => {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                };
+            }, [results]);
+
+            if (!results) return null;
+
+            const { company, groupResults, topDown } = results;
+
+            return (
+                <div className="animate-in">
+                    <div className="page-header">
+                        <h2 className="page-title">预算结果</h2>
+                        <p className="page-subtitle">年度成本汇总、月度现金流和风险分析</p>
+                    </div>
+
+                    {/* 模式切换 */}
+                    <div className="mode-toggle">
+                        <div
+                            className={`mode-option ${mode === 'bottom_up' ? 'active' : ''}`}
+                            onClick={() => setMode('bottom_up')}
+                        >
+                            自下而上（Bottom-Up）
+                        </div>
+                        <div
+                            className={`mode-option ${mode === 'top_down' ? 'active' : ''}`}
+                            onClick={() => setMode('top_down')}
+                        >
+                            自上而下（Top-Down）
+                        </div>
+                    </div>
+
+                    {/* Top-Down 预算输入 */}
+                    {mode === 'top_down' && (
+                        <div className="budget-input-container">
+                            <div className="form-group">
+                                <label className="form-label">年度总人力预算上限 (元)</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={budgetCap}
+                                    onChange={(e) => setBudgetCap(parseFloat(e.target.value) || 0)}
+                                    style={{ maxWidth: '300px' }}
+                                />
+                            </div>
+                            {topDown && (
+                                <div className={`feasibility-status ${topDown.status}`} style={{ marginTop: '16px' }}>
+                                    {topDown.status === 'feasible' ? (
+                                        <>
+                                            <Icons.Check />
+                                            <span>
+                                                预算可行，奖金缩放系数: {(topDown.scalingFactor * 100).toFixed(1)}%
+                                                （可用奖金池: {formatCurrency(topDown.bonusPoolCap)}）
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Icons.Warning />
+                                            <span>
+                                                预算不可行！固定成本 {formatCurrency(topDown.fixedYear)} 已超出预算上限，
+                                                缺口 {formatCurrency(topDown.gap)}
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 结论卡片 */}
+                    <div className="results-grid">
+                        <div className="stat-card">
+                            <div className="stat-label">年度总成本（期望）</div>
+                            <div className="stat-value accent">{formatCurrency(company.totalCostYearExp)}</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-label">固定成本（基薪+提成）</div>
+                            <div className="stat-value">{formatCurrency(company.baseCostYear + company.commissionCostYear)}</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-label">奖金成本（期望）</div>
+                            <div className="stat-value">{formatCurrency(company.bonusCostYearExp)}</div>
+                            <div className="stat-change">占比 {formatPercent(company.bonusRatio)}</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-label">奖金风险区间</div>
+                            <div className="stat-value" style={{ fontSize: '16px' }}>
+                                P90: {formatCurrency(company.P90)}
+                            </div>
+                            <div className="stat-change">P95: {formatCurrency(company.P95)}</div>
+                        </div>
+                    </div>
+
+                    {/* 现金流图表 */}
+                    <div className="chart-container">
+                        <div className="chart-header">
+                            <span className="chart-title">月度现金流</span>
+                            <div className="chart-legend">
+                                <div className="legend-item">
+                                    <div className="legend-dot" style={{ background: 'rgba(147, 51, 234, 0.3)' }} />
+                                    固定成本
+                                </div>
+                                <div className="legend-item">
+                                    <div className="legend-dot" style={{ background: 'rgba(147, 51, 234, 0.7)' }} />
+                                    奖金
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ height: '300px' }}>
+                            <canvas ref={chartRef} />
+                        </div>
+                    </div>
+
+                    {/* 分组明细表 */}
+                    <div className="card">
+                        <div className="card-header">
+                            <span className="card-title">分组明细</span>
+                        </div>
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>岗位组</th>
+                                    <th>年基薪成本</th>
+                                    <th>年提成成本</th>
+                                    <th>年奖金（期望）</th>
+                                    <th>奖金标准差</th>
+                                    <th>年总成本</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(groupResults).map(([key, r]) => (
+                                    <tr key={key}>
+                                        <td>{defaultGroups[key]?.name || key}</td>
+                                        <td>{formatCurrency(r.baseCostYear)}</td>
+                                        <td>{formatCurrency(r.commissionCostYear)}</td>
+                                        <td>{formatCurrency(r.bonusCostYearExp)}</td>
+                                        <td>{formatCurrency(r.bonusCostYearSD)}</td>
+                                        <td style={{ fontWeight: '600' }}>{formatCurrency(r.totalCostYearExp)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* 发放结构比例表 */}
+                    <PayoutStructureTable groupResults={groupResults} company={company} groups={groups} />
+                </div>
+            );
+        };
+
+        // 发放结构比例表组件
+        const PayoutStructureTable = ({ groupResults, company, groups }) => {
+            const [viewMode, setViewMode] = useState('byGroup'); // 'byGroup' | 'byTotal'
+
+            // 计算每个岗位的发放结构
+            const calcGroupPayoutStructure = (groupKey, result) => {
+                const group = groups[groupKey];
+                if (!group || !result) return null;
+
+                const total = result.totalCostYearExp;
+                if (total === 0) return { base: 0, commission: 0, bonus: 0 };
+
+                return {
+                    base: result.baseCostYear / total,
+                    commission: result.commissionCostYear / total,
+                    bonus: result.bonusCostYearExp / total
+                };
+            };
+
+            // 计算全公司发放结构占总支出的比例
+            const calcTotalPayoutStructure = () => {
+                const total = company.totalCostYearExp;
+                if (total === 0) return {};
+
+                const structure = {
+                    company: {
+                        base: company.baseCostYear / total,
+                        commission: company.commissionCostYear / total,
+                        bonus: company.bonusCostYearExp / total
+                    }
+                };
+
+                Object.entries(groupResults).forEach(([key, r]) => {
+                    structure[key] = {
+                        base: r.baseCostYear / total,
+                        commission: r.commissionCostYear / total,
+                        bonus: r.bonusCostYearExp / total,
+                        total: r.totalCostYearExp / total
+                    };
+                });
+
+                return structure;
+            };
+
+            const totalStructure = calcTotalPayoutStructure();
+
+            return (
+                <div className="card">
+                    <div className="card-header">
+                        <span className="card-title">发放结构比例</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                className={`btn ${viewMode === 'byGroup' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setViewMode('byGroup')}
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                            >
+                                各岗位内部占比
+                            </button>
+                            <button
+                                className={`btn ${viewMode === 'byTotal' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setViewMode('byTotal')}
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                            >
+                                占总支出比例
+                            </button>
+                        </div>
+                    </div>
+
+                    {viewMode === 'byGroup' ? (
+                        <>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                                每个岗位内部，基薪/提成/奖金各占该岗位总成本的比例
+                            </p>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>岗位组</th>
+                                        <th>基薪占比</th>
+                                        <th>提成占比</th>
+                                        <th>奖金占比</th>
+                                        <th style={{ width: '200px' }}>结构可视化</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(groupResults).map(([key, r]) => {
+                                        const struct = calcGroupPayoutStructure(key, r);
+                                        if (!struct) return null;
+                                        return (
+                                            <tr key={key}>
+                                                <td>{groups[key]?.name || key}</td>
+                                                <td>{formatPercent(struct.base)}</td>
+                                                <td>{formatPercent(struct.commission)}</td>
+                                                <td>{formatPercent(struct.bonus)}</td>
+                                                <td>
+                                                    <div style={{ display: 'flex', height: '20px', borderRadius: '4px', overflow: 'hidden' }}>
+                                                        <div style={{ width: `${struct.base * 100}%`, background: 'rgba(147, 51, 234, 0.3)', minWidth: struct.base > 0 ? '2px' : '0' }} title={`基薪 ${formatPercent(struct.base)}`} />
+                                                        <div style={{ width: `${struct.commission * 100}%`, background: 'rgba(147, 51, 234, 0.5)', minWidth: struct.commission > 0 ? '2px' : '0' }} title={`提成 ${formatPercent(struct.commission)}`} />
+                                                        <div style={{ width: `${struct.bonus * 100}%`, background: 'rgba(147, 51, 234, 0.8)', minWidth: struct.bonus > 0 ? '2px' : '0' }} title={`奖金 ${formatPercent(struct.bonus)}`} />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {/* 公司汇总行 */}
+                                    <tr style={{ background: 'var(--purple-50)', fontWeight: '600' }}>
+                                        <td>公司合计</td>
+                                        <td>{formatPercent(totalStructure.company?.base || 0)}</td>
+                                        <td>{formatPercent(totalStructure.company?.commission || 0)}</td>
+                                        <td>{formatPercent(totalStructure.company?.bonus || 0)}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', height: '20px', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${(totalStructure.company?.base || 0) * 100}%`, background: 'rgba(147, 51, 234, 0.3)' }} />
+                                                <div style={{ width: `${(totalStructure.company?.commission || 0) * 100}%`, background: 'rgba(147, 51, 234, 0.5)' }} />
+                                                <div style={{ width: `${(totalStructure.company?.bonus || 0) * 100}%`, background: 'rgba(147, 51, 234, 0.8)' }} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ width: '12px', height: '12px', background: 'rgba(147, 51, 234, 0.3)', borderRadius: '2px' }} />
+                                    基薪
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ width: '12px', height: '12px', background: 'rgba(147, 51, 234, 0.5)', borderRadius: '2px' }} />
+                                    提成
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ width: '12px', height: '12px', background: 'rgba(147, 51, 234, 0.8)', borderRadius: '2px' }} />
+                                    奖金
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                                各岗位的各项支出，占公司总支出的比例
+                            </p>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>岗位组</th>
+                                        <th>基薪占总支出</th>
+                                        <th>提成占总支出</th>
+                                        <th>奖金占总支出</th>
+                                        <th>该岗位占总支出</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(groupResults).map(([key, r]) => {
+                                        const struct = totalStructure[key];
+                                        if (!struct) return null;
+                                        return (
+                                            <tr key={key}>
+                                                <td>{groups[key]?.name || key}</td>
+                                                <td>{formatPercent(struct.base)}</td>
+                                                <td>{formatPercent(struct.commission)}</td>
+                                                <td>{formatPercent(struct.bonus)}</td>
+                                                <td style={{ fontWeight: '600' }}>{formatPercent(struct.total)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {/* 公司汇总行 */}
+                                    <tr style={{ background: 'var(--purple-50)', fontWeight: '600' }}>
+                                        <td>公司合计</td>
+                                        <td>{formatPercent(totalStructure.company?.base || 0)}</td>
+                                        <td>{formatPercent(totalStructure.company?.commission || 0)}</td>
+                                        <td>{formatPercent(totalStructure.company?.bonus || 0)}</td>
+                                        <td>100.0%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            {/* 堆叠条形图可视化 */}
+                            <div style={{ marginTop: '20px' }}>
+                                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>支出结构可视化</div>
+                                <div style={{ display: 'flex', height: '32px', borderRadius: '6px', overflow: 'hidden', background: 'var(--purple-50)' }}>
+                                    {Object.entries(groupResults).map(([key, r], idx) => {
+                                        const struct = totalStructure[key];
+                                        if (!struct) return null;
+                                        const colors = [
+                                            'rgba(147, 51, 234, 0.4)',
+                                            'rgba(147, 51, 234, 0.55)',
+                                            'rgba(147, 51, 234, 0.7)',
+                                            'rgba(147, 51, 234, 0.85)'
+                                        ];
+                                        return (
+                                            <div
+                                                key={key}
+                                                style={{
+                                                    width: `${struct.total * 100}%`,
+                                                    background: colors[idx % colors.length],
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '11px',
+                                                    color: 'white',
+                                                    fontWeight: '500',
+                                                    minWidth: struct.total > 0.05 ? 'auto' : '0'
+                                                }}
+                                                title={`${groups[key]?.name || key}: ${formatPercent(struct.total)}`}
+                                            >
+                                                {struct.total > 0.08 && (groups[key]?.name || key)}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                                    {Object.entries(groupResults).map(([key, r], idx) => {
+                                        const struct = totalStructure[key];
+                                        const colors = [
+                                            'rgba(147, 51, 234, 0.4)',
+                                            'rgba(147, 51, 234, 0.55)',
+                                            'rgba(147, 51, 234, 0.7)',
+                                            'rgba(147, 51, 234, 0.85)'
+                                        ];
+                                        return (
+                                            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <div style={{ width: '10px', height: '10px', background: colors[idx % colors.length], borderRadius: '2px' }} />
+                                                {groups[key]?.name || key} ({formatPercent(struct?.total || 0)})
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        // 主应用
+        const App = () => {
+            const [activePage, setActivePage] = useState('results');
+            const [scenarioName, setScenarioName] = useState('2025年度预算方案');
+            const [scenarioNote, setScenarioNote] = useState('');
+            const [groups, setGroups] = useState(defaultGroups);
+            const [perfDist, setPerfDist] = useState(defaultPerfDist);
+            const [mode, setMode] = useState('bottom_up');
+            const [budgetCap, setBudgetCap] = useState(30000000);
+
+            // 从 URL 加载状态
+            useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const data = params.get('data');
+                if (data) {
+                    const state = decodeState(data);
+                    if (state) {
+                        if (state.scenarioName) setScenarioName(state.scenarioName);
+                        if (state.scenarioNote) setScenarioNote(state.scenarioNote);
+                        if (state.groups) setGroups(state.groups);
+                        if (state.perfDist) setPerfDist(state.perfDist);
+                        if (state.mode) setMode(state.mode);
+                        if (state.budgetCap) setBudgetCap(state.budgetCap);
+                    }
+                }
+            }, []);
+
+            // 计算结果
+            const results = useMemo(() => {
+                const perfStats = CalcEngine.calcPerfStats(perfDist);
+                if (mode === 'bottom_up') {
+                    return CalcEngine.calcCompanyBottomUp(groups, perfDist);
+                } else {
+                    return CalcEngine.calcCompanyTopDown(groups, perfDist, budgetCap);
+                }
+            }, [groups, perfDist, mode, budgetCap]);
+
+            const perfStats = useMemo(() => CalcEngine.calcPerfStats(perfDist), [perfDist]);
+
+            // 生成分享链接
+            const shareUrl = useMemo(() => {
+                const state = { scenarioName, scenarioNote, groups, perfDist, mode, budgetCap };
+                const encoded = encodeState(state);
+                const baseUrl = window.location.origin + window.location.pathname;
+                return `${baseUrl}?data=${encoded}`;
+            }, [scenarioName, scenarioNote, groups, perfDist, mode, budgetCap]);
+
+            // 导出 JSON
+            const handleExport = () => {
+                const state = { scenarioName, scenarioNote, groups, perfDist, mode, budgetCap };
+                const json = JSON.stringify(state, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${scenarioName || 'scenario'}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            // 导入 JSON
+            const handleImport = (data) => {
+                if (data.scenarioName) setScenarioName(data.scenarioName);
+                if (data.scenarioNote) setScenarioNote(data.scenarioNote);
+                if (data.groups) setGroups(data.groups);
+                if (data.perfDist) setPerfDist(data.perfDist);
+                if (data.mode) setMode(data.mode);
+                if (data.budgetCap) setBudgetCap(data.budgetCap);
+            };
+
+            const renderPage = () => {
+                switch (activePage) {
+                    case 'scenario':
+                        return (
+                            <ScenarioPage
+                                scenarioName={scenarioName}
+                                setScenarioName={setScenarioName}
+                                scenarioNote={scenarioNote}
+                                setScenarioNote={setScenarioNote}
+                                onExport={handleExport}
+                                onImport={handleImport}
+                                shareUrl={shareUrl}
+                            />
+                        );
+                    case 'assumptions':
+                        return (
+                            <AssumptionsPage
+                                groups={groups}
+                                setGroups={setGroups}
+                                perfStats={perfStats}
+                            />
+                        );
+                    case 'performance':
+                        return (
+                            <PerformancePage
+                                perfDist={perfDist}
+                                setPerfDist={setPerfDist}
+                            />
+                        );
+                    case 'timing':
+                        return (
+                            <TimingPage
+                                groups={groups}
+                                setGroups={setGroups}
+                            />
+                        );
+                    case 'results':
+                        return (
+                            <ResultsPage
+                                results={results}
+                                mode={mode}
+                                budgetCap={budgetCap}
+                                setBudgetCap={setBudgetCap}
+                                setMode={setMode}
+                                groups={groups}
+                            />
+                        );
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div className="app-container">
+                    <Sidebar activePage={activePage} setActivePage={setActivePage} />
+                    <main className="main-content">
+                        {renderPage()}
+                    </main>
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
